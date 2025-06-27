@@ -219,10 +219,6 @@ echo "--- Перевірка StatefulSet MySQL ---"
 kubectl get statefulset -n mysql mysql
 # Очікуваний вивід: StatefulSet "mysql" з 1 бажаною та 1 поточною реплікою, Ready 1/1.
 
-echo "--- Перевірка PersistentVolumeClaims MySQL ---"
-kubectl get pvc -n mysql -l app=mysql
-# Очікуваний вивід: PVC "mysql-persistent-storage-mysql-0" у стані "Bound".
-
 echo "--- Перевірка Pod'ів MySQL ---"
 kubectl get pod -n mysql -l app=mysql
 # Очікуваний вивід: Pod "mysql-0" у стані "Running" та "Ready" (1/1).
