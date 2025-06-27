@@ -1,24 +1,41 @@
-# Stage 1: Build Stage
-ARG PYTHON_VERSION=3.8
-FROM python:${PYTHON_VERSION} as builder
+# Використання багатостадійної побудови для зменшення розміру кінцевого образу
+# Стадія 'builder' для встановлення залежностей та збирання файлів
+FROM python:3.10-slim-buster AS builder
 
-# Set the working directory
+# Встановіть залежності, необхідні для компіляції mysqlclient
+# та інші системні залежності для Python-додатка.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Встановіть робочу директорію
 WORKDIR /app
-COPY . .
 
-# Stage 2: Run Stage
-FROM python:${PYTHON_VERSION} as run
+# Копіюємо файл requirements.txt та встановлюємо залежності
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Перемикаємося на нову, чисту базову стадію для кінцевого образу
+FROM python:3.10-slim-buster
+
+# Встановіть робочу директорію
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+# Налаштуйте змінну оточення, щоб Python не буферизував вивід
+ENV PYTHONUNBUFFERED 1
 
-COPY --from=builder /app .
+# Копіюємо збірки з попередньої стадії
+COPY --from=builder /app /app
 
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Копіюємо решту файлів проекту
+COPY . /app
 
-# RUN python manage.py migrate
+# Відкриваємо порт, на якому буде працювати додаток
+EXPOSE 8080
 
-# Run database migrations and start the Django application
-ENTRYPOINT ["python", "manage.py", "runserver", "0.0.0.0:8080"]
+# Команда для запуску Gunicorn сервера.
+# Міграції тепер запускаються як частина команди контейнера в Kubernetes Deployment.
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "todolist.wsgi:application"]
