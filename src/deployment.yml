@@ -1,14 +1,17 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: todo-app-secrets # Секрет для облікових даних Todo App
+  name: todo-app-secrets
 type: Opaque
 stringData:
-  SECRET_KEY: "7410-your-django-secret-key" # Замініть на реальний ключ
-  MYSQL_DATABASE_NAME: "tododb" # Назва бази даних для Django
-  MYSQL_USER: "leoleiden" # Користувач MySQL, під яким підключається Django
-  MYSQL_PASSWORD: "7410" # Пароль для користувача MySQL
-  MYSQL_HOST: mysql-0.mysql.mysql.svc.cluster.local # FQDN першого пода MySQL StatefulSet
+  # Замініть на реальні значення, або згенеруйте їх.
+  # Ці значення будуть використовуватися Django-додатком для підключення до MySQL.
+  SECRET_KEY: "ваш_дуже_секретний_ключ_для_django_проекту" # Встановіть тут унікальний і складний ключ
+  DEBUG: "True" # Для розробки, для продакшену має бути "False"
+  MYSQL_DATABASE_NAME: "tododb"
+  MYSQL_USER: "leoleiden" # Має відповідати користувачу в init.sql та mysql-secrets
+  MYSQL_PASSWORD: "7410" # Має відповідати паролю в init.sql та mysql-secrets
+  MYSQL_HOST: mysql-0.mysql.mysql.svc.cluster.local # FQDN для підключення до першого пода MySQL StatefulSet
   MYSQL_PORT: "3306"
 ---
 apiVersion: apps/v1
@@ -18,7 +21,7 @@ metadata:
   labels:
     app: todo-app
 spec:
-  replicas: 1
+  replicas: 1 # Залишаємо 1 для простоти, щоб уникнути конфліктів міграцій
   selector:
     matchLabels:
       app: todo-app
@@ -29,18 +32,20 @@ spec:
     spec:
       containers:
       - name: todo-app
-        image: leoleiden/todo-app:latest # Використовуйте ім'я вашого образу
+        image: leoleiden/todo-app:latest # Використовуйте ваше ім'я користувача Docker Hub
         ports:
-        - containerPort: 8080 # Оновлено до 8080
+        - containerPort: 8080 # <-- Змінено на 8080 для консистентності
         env:
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: todo-app-secrets
               key: SECRET_KEY
-        - name: DEBUG # Додаємо DEBUG з Secret, якщо потрібно
-          value: "True" # Або valueFrom SecretKeyRef
-        # Змінні оточення для підключення до MySQL з Secret
+        - name: DEBUG
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: DEBUG
         - name: MYSQL_DATABASE_NAME
           valueFrom:
             secretKeyRef:
@@ -67,19 +72,23 @@ spec:
               name: todo-app-secrets
               key: MYSQL_PORT
         command: ["/bin/sh"]
-        args: ["-c", "python manage.py makemigrations lists && python manage.py migrate && python manage.py runserver 0.0.0.0:8080"]
+        args: ["-c", "python manage.py makemigrations lists && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8080"] # <-- Розкоментовано та додано --noinput для автоматичних міграцій
         livenessProbe:
           httpGet:
-            path: /api/health
+            path: /api/health # Переконайтеся, що цей шлях існує у вашому додатку
             port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /api/ready
+            path: /api/ready # Переконайтеся, що цей шлях існує
             port: 8080
-          initialDelaySeconds: 20
-          periodSeconds: 10
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         resources:
           requests:
             cpu: "100m"
