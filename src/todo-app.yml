@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: todo-app-secrets
+type: Opaque
+stringData:
+  # Замініть на реальні значення, або згенеруйте їх
+  SECRET_KEY: "7410"
+  MYSQL_DATABASE_NAME: "tododb"
+  MYSQL_USER: "leoleiden"
+  MYSQL_PASSWORD: "7410"
+  MYSQL_HOST: mysql-0.mysql.mysql.svc.cluster.local # FQDN для підключення до першого пода MySQL StatefulSet
+  MYSQL_PORT: "3306"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app-deployment
+  labels:
+    app: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      labels:
+        app: todo-app
+    spec:
+      containers:
+      - name: todo-app
+        image: leoleiden/todo-app:latest # Замініть на ваше ім'я користувача Docker Hub та назву образу
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: SECRET_KEY
+        - name: MYSQL_DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_DATABASE_NAME
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_PASSWORD
+        - name: MYSQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_HOST
+        - name: MYSQL_PORT
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_PORT
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+      # initContainer для міграцій (опціонально, якщо прибирати з Dockerfile)
+      # initContainers:
+      # - name: init-db
+      #   image: your_docker_username/todo-app:latest # Той самий образ, що і для додатка
+      #   command: ["python", "manage.py", "migrate"]
+      #   env:
+      #   - name: MYSQL_DATABASE_NAME
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: todo-app-secrets
+      #         key: MYSQL_DATABASE_NAME
+      #   - name: MYSQL_USER
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: todo-app-secrets
+      #         key: MYSQL_USER
+      #   - name: MYSQL_PASSWORD
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: todo-app-secrets
+      #         key: MYSQL_PASSWORD
+      #   - name: MYSQL_HOST
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: todo-app-secrets
+      #         key: MYSQL_HOST
+      #   - name: MYSQL_PORT
+      #     valueFrom:
+      #       secretKeyRef:
+      #         name: todo-app-secrets
+      #         key: MYSQL_PORT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-service
+spec:
+  selector:
+    app: todo-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: NodePort # Використання NodePort для доступу ззовні кластера

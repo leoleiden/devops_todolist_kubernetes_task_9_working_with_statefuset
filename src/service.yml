@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-service
+spec:
+  selector:
+    app: todo-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080 # Оновлено до 8080
+      nodePort: 32055 # Додаємо NodePort, якщо потрібен прямий доступ
+  type: NodePort

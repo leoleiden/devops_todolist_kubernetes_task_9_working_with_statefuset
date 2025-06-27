@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: todo-app-secrets # Секрет для облікових даних Todo App
+type: Opaque
+stringData:
+  SECRET_KEY: "7410-your-django-secret-key" # Замініть на реальний ключ
+  MYSQL_DATABASE_NAME: "tododb" # Назва бази даних для Django
+  MYSQL_USER: "leoleiden" # Користувач MySQL, під яким підключається Django
+  MYSQL_PASSWORD: "7410" # Пароль для користувача MySQL
+  MYSQL_HOST: mysql-0.mysql.mysql.svc.cluster.local # FQDN першого пода MySQL StatefulSet
+  MYSQL_PORT: "3306"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app-deployment
+  labels:
+    app: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      labels:
+        app: todo-app
+    spec:
+      containers:
+      - name: todo-app
+        image: leoleiden/todo-app:latest # Використовуйте ім'я вашого образу
+        ports:
+        - containerPort: 8080 # Оновлено до 8080
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: SECRET_KEY
+        - name: DEBUG # Додаємо DEBUG з Secret, якщо потрібно
+          value: "True" # Або valueFrom SecretKeyRef
+        # Змінні оточення для підключення до MySQL з Secret
+        - name: MYSQL_DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_DATABASE_NAME
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_PASSWORD
+        - name: MYSQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_HOST
+        - name: MYSQL_PORT
+          valueFrom:
+            secretKeyRef:
+              name: todo-app-secrets
+              key: MYSQL_PORT
+        command: ["/bin/sh"]
+        args: ["-c", "python manage.py makemigrations lists && python manage.py migrate && python manage.py runserver 0.0.0.0:8080"]
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
