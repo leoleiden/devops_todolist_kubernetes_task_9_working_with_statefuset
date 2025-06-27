@@ -6,7 +6,7 @@ type: Opaque
 stringData:
   # Замініть на реальні значення, або згенеруйте їх.
   # Ці значення будуть використовуватися Django-додатком для підключення до MySQL.
-  SECRET_KEY: "ваш_дуже_секретний_ключ_для_django_проекту" # Встановіть тут унікальний і складний ключ
+  SECRET_KEY: "=q-6975cau83%ms!znj8k2c0g9$mxaj!)t)fd==s=fnym348qp" # Встановіть тут унікальний і складний ключ
   DEBUG: "True" # Для розробки, для продакшену має бути "False"
   MYSQL_DATABASE_NAME: "tododb"
   MYSQL_USER: "leoleiden" # Має відповідати користувачу в init.sql та mysql-secrets
